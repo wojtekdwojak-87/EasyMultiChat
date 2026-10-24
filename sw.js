@@ -1,13 +1,23 @@
-const CACHE_NAME = 'easymultichat-v1';
-const ASSETS = [
+```javascript
+const CACHE_NAME = 'easymultichat-v3';
+const CORE_ASSETS = [
   './',
   './index.html',
-  './manifest.json'
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png',
+  './logo-poziome.png',
+  './logo-pionowe.png'
 ];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then(async (cache) => {
+      // Pobieranie odporne na ewentualny brak pojedynczego pliku (nie uwala całego SW przy 404)
+      await Promise.allSettled(
+        CORE_ASSETS.map((asset) => cache.add(asset).catch((err) => console.warn(`Nie udało się scache'ować: ${asset}`, err)))
+      );
+    })
   );
   self.skipWaiting();
 });
@@ -25,6 +35,16 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   e.respondWith(
-    caches.match(e.request).then((res) => res || fetch(e.request))
+    caches.match(e.request).then((cachedResponse) => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      return fetch(e.request).catch(() => {
+        if (e.request.mode === 'navigate') {
+          return caches.match('./index.html');
+        }
+      });
+    })
   );
 });
+```
